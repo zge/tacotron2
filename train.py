@@ -1,3 +1,11 @@
+# Train Tacotron2 model
+#
+# Example:
+#   python -m multiproc train.py \
+#     --output_directory=outdir/ljspeech \
+#     --log_directory=logdir \
+#     --hparams=distributed_run=True,batch_size=24,iters_per_checkpoint=2000
+
 import os
 import time
 import argparse
@@ -14,7 +22,7 @@ from model import Tacotron2
 from data_utils import TextMelLoader, TextMelCollate
 from loss_function import Tacotron2Loss
 from logger import Tacotron2Logger
-from hparams import create_hparams
+from hparams import create_hparams, hparams_debug_string
 
 
 def reduce_tensor(tensor, n_gpus):
@@ -184,6 +192,7 @@ def train(output_directory, log_directory, checkpoint_path, warm_start, n_gpus,
         output_directory, log_directory, rank)
 
     train_loader, valset, collate_fn = prepare_dataloaders(hparams)
+    print('# of batches: {}'.format(len(train_loader)))
 
     # Load checkpoint if one exists
     iteration = 0
@@ -254,8 +263,7 @@ def train(output_directory, log_directory, checkpoint_path, warm_start, n_gpus,
 
             iteration += 1
 
-
-if __name__ == '__main__':
+def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-o', '--output_directory', type=str,
                         help='directory to save checkpoints')
@@ -274,8 +282,50 @@ if __name__ == '__main__':
     parser.add_argument('--hparams', type=str,
                         required=False, help='comma separated name=value pairs')
 
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+
+    # runtime mode
+    args = parse_args()
+
+    # # interactive mode
+    # args = argparse.ArgumentParser()
+    # args.output_directory = 'outdir/ljspeech'
+    # args.log_directory = 'logdir'
+    # args.checkpoint_path = None
+    # args.warm_start = False
+    # args.n_gpus = 2
+    # args.rank = 0
+    # args.group_name = 'group_name'
+    # hparams = ["training_files=filelists/ljs_audio_text_train_filelist.txt",
+    #            "validation_files=filelists/ljs_audio_text_val_filelist.txt",
+    #            "use_saved_learning_rate=True",
+    #            "batch_size=24",
+    #            "iters_per_checkpoint=2000",
+    #            "distributed_run=True",
+    #            "fp16_run=False"]
+    # args.hparams = ','.join(hparams)
+
+    output_directory = args.output_directory
+    log_directory = args.log_directory
+    checkpoint_path = args.checkpoint_path
+    warm_start = args.warm_start
+    n_gpus = args.n_gpus
+    rank = args.rank
+    group_name = args.group_name
+
+    print("Output Directory:", output_directory)
+    print("Log Directory:", log_directory)
+    print("Checkpoint Path:", checkpoint_path)
+    print("Warm Start:", warm_start)
+    print("# of GPUs:", n_gpus)
+    print("Rank:", rank)
+    print("Group Name:", group_name)
+
     hparams = create_hparams(args.hparams)
+    print(hparams_debug_string(hparams))
 
     torch.backends.cudnn.enabled = hparams.cudnn_enabled
     torch.backends.cudnn.benchmark = hparams.cudnn_benchmark
@@ -286,5 +336,5 @@ if __name__ == '__main__':
     print("cuDNN Enabled:", hparams.cudnn_enabled)
     print("cuDNN Benchmark:", hparams.cudnn_benchmark)
 
-    train(args.output_directory, args.log_directory, args.checkpoint_path,
-          args.warm_start, args.n_gpus, args.rank, args.group_name, hparams)
+    train(output_directory, log_directory, checkpoint_path,
+          warm_start, n_gpus, rank, group_name, hparams)

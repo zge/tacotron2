@@ -93,3 +93,9 @@ def create_hparams(hparams_string=None, verbose=False):
         tf.logging.info('Final parsed hparams: %s', hparams.values())
 
     return hparams
+
+
+def hparams_debug_string(hparams):
+    values = hparams.values()
+    hp = ['  %s: %s' % (name, values[name]) for name in sorted(values)]
+    return 'Hyperparameters:\n' + '\n'.join(hp)
