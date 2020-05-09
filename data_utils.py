@@ -2,6 +2,7 @@ import random
 import numpy as np
 import torch
 import torch.utils.data
+import pickle as pkl
 
 import layers
 from utils import load_wav_to_torch, load_filepaths_and_text
@@ -20,6 +21,7 @@ class TextMelLoader(torch.utils.data.Dataset):
         self.max_wav_value = hparams.max_wav_value
         self.sampling_rate = hparams.sampling_rate
         self.load_mel_from_disk = hparams.load_mel_from_disk
+        self.mel_data_type = hparams.mel_data_type
         self.stft = layers.TacotronSTFT(
             hparams.filter_length, hparams.hop_length, hparams.win_length,
             hparams.n_mel_channels, hparams.sampling_rate, hparams.mel_fmin,
@@ -31,10 +33,10 @@ class TextMelLoader(torch.utils.data.Dataset):
         # separate filename and text
         audiopath, text = audiopath_and_text[0], audiopath_and_text[1]
         text = self.get_text(text)
-        mel = self.get_mel(audiopath)
+        mel = self.get_mel(audiopath, ftype=self.mel_data_type)
         return (text, mel)
 
-    def get_mel(self, filename):
+    def get_mel(self, filename, ftype='numpy'):
         if not self.load_mel_from_disk:
             audio, sampling_rate = load_wav_to_torch(filename)
             if sampling_rate != self.stft.sampling_rate:
@@ -46,7 +48,11 @@ class TextMelLoader(torch.utils.data.Dataset):
             melspec = self.stft.mel_spectrogram(audio_norm)
             melspec = torch.squeeze(melspec, 0)
         else:
-            melspec = torch.from_numpy(np.load(filename))
+            if ftype == 'numpy':
+              melspec = torch.from_numpy(np.load(filename))
+            elif ftype == 'torch':
+              with open(filename, 'rb') as f:
+                melspec = pkl.load(f)
             assert melspec.size(0) == self.stft.n_mel_channels, (
                 'Mel dimension mismatch: given {}, expected {}'.format(
                     melspec.size(0), self.stft.n_mel_channels))
