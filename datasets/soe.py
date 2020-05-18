@@ -3,11 +3,12 @@ from functools import partial
 import numpy as np
 import torch
 import os
+import glob
 import pickle as pkl
 
 from utils import load_wav_to_torch
 import layers
-from hparams import create_hparams
+from hparams_soe import create_hparams
 hparams = create_hparams()
 
 
@@ -26,44 +27,46 @@ def build_from_path(in_dir, out_dir, num_workers=1, tqdm=lambda x: x):
   # can omit it and just call _process_utterance on each input if you want.
   executor = ProcessPoolExecutor(max_workers=num_workers)
   futures = []
-  metafile = os.path.join(in_dir, 'metadata.csv')
-  lines = open(metafile, encoding='utf-8').readlines()
-  nlines = len(lines)
-  batchsize = int(nlines/10/1000)*1000
-  for i, line in enumerate(lines):
+  wavs = sorted(glob.glob(os.path.join(in_dir, '**', '*.wav'), recursive=True))
+  nwavs = len(wavs)
+  batchsize = int(nwavs/10/1000)*1000
+  print('batch size: {}'.format(batchsize))
+  for i, wav in enumerate(wavs):
     if (i+1) % batchsize == 0:
-      print('%d/%d lines submitted ...' % (i+1, nlines))
-    parts = line.strip().split('|')
-    wav_path = os.path.join(in_dir, 'wavs', '%s.wav' % parts[0])
-    text = parts[2]  # normalized text
-    #futures.append(_process_utterance(out_dir, wav_path, text))
-    futures.append(executor.submit(partial(_process_utterance, out_dir, wav_path, text)))
+      print('%d/%d wavs submitted ...' % (i+1, nwavs))
+    txt = wav.replace('.wav', '.txt')
+    #futures.append(_process_utterance(in_dir, out_dir, wav, txt))
+    futures.append(executor.submit(partial(_process_utterance, in_dir, out_dir, wav, txt)))
   print('All lines submitted!')
 
+  #return futures
   return [future.result() for future in tqdm(futures)]
 
-def _process_utterance(out_dir, wav_path, text):
+def _process_utterance(in_dir, out_dir, wav_path, txt_path):
   '''Preprocesses a single utterance audio/text pair.
   This writes the mel feature to disk and returns a tuple to write
   to the mels.txt file.
   Args:
     out_dir: The directory to write the spectrograms into
     wav_path: Path to the audio file containing the speech input
-    text: The text spoken in the input audio file
+    txt_path: Path to the text file containing the text of speech input
   Returns:
     A (melspec, n_frames, text) tuple to write to mels.txt
   '''
 
-  fid = os.path.splitext(os.path.basename(wav_path))[0]
+  # get text
+  text = open(txt_path, 'r').readline().rstrip()
 
   # case if mel already exist
   if hparams.mel_data_type == 'numpy':
-    mel_path = os.path.join(out_dir, '{}.npy'.format(fid))
+    mel_path = wav_path.replace('.wav', '.npy')
+    mel_path = mel_path.replace(in_dir, out_dir)
     if os.path.isfile(mel_path):
       melspec = torch.from_numpy(np.load(mel_path))
       return (mel_path, melspec.shape[1], text)
   elif hparams.mel_data_type == 'torch':
-    mel_path = os.path.join(out_dir, '{}.pt'.format(fid))
+    mel_path = wav_path.replace('.wav', '.pt')
+    mel_path = mel_path.replace(in_dir, out_dir)
     if os.path.isfile(mel_path):
       #melspec = torch.load(mel_path) # pkl is faster than torch here
       with open(mel_path, 'rb') as f:
@@ -94,4 +97,3 @@ def _process_utterance(out_dir, wav_path, text):
 
   # Return a tuple describing this training example:
   return (mel_path, melspec.shape[1], text)
-

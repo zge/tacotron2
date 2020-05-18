@@ -221,7 +221,7 @@ def train(output_directory, log_directory, checkpoint_path, warm_start, n_gpus,
 
             model.zero_grad()
             x, y = model.parse_batch(batch)
-            y_pred = model(x)
+            y_pred = model(x) # same as model.forward(x)
 
             loss = criterion(y_pred, y)
             if hparams.distributed_run:
@@ -277,6 +277,8 @@ def parse_args():
                         required=False, help='number of gpus')
     parser.add_argument('--rank', type=int, default=0,
                         required=False, help='rank of current gpu')
+    parser.add_argument('--gpu', type=int, default=0,
+                        required=False, help='current gpu device id')
     parser.add_argument('--group_name', type=str, default='group_name',
                         required=False, help='Distributed group name')
     parser.add_argument('--hparams', type=str,
@@ -296,17 +298,35 @@ if __name__ == '__main__':
     # args.log_directory = 'logdir'
     # args.checkpoint_path = None
     # args.warm_start = False
-    # args.n_gpus = 2
+    # args.n_gpus = 1
     # args.rank = 0
+    # args.gpu = 1
     # args.group_name = 'group_name'
-    # hparams = ["training_files=filelists/ljs_audio_text_train_filelist.txt",
-    #            "validation_files=filelists/ljs_audio_text_val_filelist.txt",
+    # hparams = ["training_files=filelists/soe/3x/soe_wav-text1_train_3x.txt",
+    #            "validation_files=filelists/soe/3x/soe_wav-text1_valid_3x.txt",
     #            "use_saved_learning_rate=True",
-    #            "batch_size=24",
+    #            "batch_size=5",
     #            "iters_per_checkpoint=2000",
     #            "distributed_run=False",
     #            "fp16_run=False"]
     # args.hparams = ','.join(hparams)
+
+    if args.n_gpus == 1:
+      # set current GPU device
+      torch.cuda.set_device(args.gpu)
+    print('current GPU: {}'.format(torch.cuda.current_device()))
+
+    hparams = create_hparams(args.hparams)
+    print(hparams_debug_string(hparams))
+
+    torch.backends.cudnn.enabled = hparams.cudnn_enabled
+    torch.backends.cudnn.benchmark = hparams.cudnn_benchmark
+
+    print("FP16 Run:", hparams.fp16_run)
+    print("Dynamic Loss Scaling:", hparams.dynamic_loss_scaling)
+    print("Distributed Run:", hparams.distributed_run)
+    print("cuDNN Enabled:", hparams.cudnn_enabled)
+    print("cuDNN Benchmark:", hparams.cudnn_benchmark)
 
     output_directory = args.output_directory
     log_directory = args.log_directory
@@ -323,18 +343,6 @@ if __name__ == '__main__':
     print("# of GPUs:", n_gpus)
     print("Rank:", rank)
     print("Group Name:", group_name)
-
-    hparams = create_hparams(args.hparams)
-    print(hparams_debug_string(hparams))
-
-    torch.backends.cudnn.enabled = hparams.cudnn_enabled
-    torch.backends.cudnn.benchmark = hparams.cudnn_benchmark
-
-    print("FP16 Run:", hparams.fp16_run)
-    print("Dynamic Loss Scaling:", hparams.dynamic_loss_scaling)
-    print("Distributed Run:", hparams.distributed_run)
-    print("cuDNN Enabled:", hparams.cudnn_enabled)
-    print("cuDNN Benchmark:", hparams.cudnn_benchmark)
 
     train(output_directory, log_directory, checkpoint_path,
           warm_start, n_gpus, rank, group_name, hparams)

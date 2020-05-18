@@ -500,10 +500,15 @@ class Tacotron2(nn.Module):
         text_inputs, text_lengths, mels, max_len, output_lengths = inputs
         text_lengths, output_lengths = text_lengths.data, output_lengths.data
 
+        # get embedded text inputs (batch_size, symbols_embedding_dim, max_len)
         embedded_inputs = self.embedding(text_inputs).transpose(1, 2)
 
+        # get encoder outputs (batch_size, max_len, encoder_embedding_dim)
         encoder_outputs = self.encoder(embedded_inputs, text_lengths)
 
+        # get mel outputs (batch_size, n_mel_channels, max_output_length)
+        # get gate_outputs (batch_size, max_output_length)
+        # get alignments (batch_size, max_output_length, max_len)
         mel_outputs, gate_outputs, alignments = self.decoder(
             encoder_outputs, mels, memory_lengths=text_lengths)
 
