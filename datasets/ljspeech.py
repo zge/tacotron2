@@ -78,6 +78,11 @@ def _process_utterance(out_dir, wav_path, text):
   audio_norm = audio / hparams.max_wav_value # dim: #samples
   audio_norm = audio_norm.unsqueeze(0) # dim: 1 X #samples
   audio_norm = torch.autograd.Variable(audio_norm, requires_grad=False)
+  # over-riding win_length/hop_length if win_length_ms/hop_length_ms are specified
+  if hasattr(hparams, 'win_length_ms'):
+    hparams.win_length = int(hparams.win_length_ms / 1000 * hparams.sampling_rate)
+  if hasattr(hparams, 'hop_length_ms'):
+    hparams.hop_length = int(hparams.hop_length_ms / 1000 * hparams.sampling_rate)
   stft = layers.TacotronSTFT(
     hparams.filter_length, hparams.hop_length, hparams.win_length,
     hparams.n_mel_channels, hparams.sampling_rate, hparams.mel_fmin,

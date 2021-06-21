@@ -26,8 +26,8 @@ def create_hparams(hparams_string=None, verbose=False):
         ################################
         load_mel_from_disk=False,
         mel_data_type='numpy', # 'numpy' or 'torch'
-        training_files='filelists/ljs_audio_text_train_filelist.txt',
-        validation_files='filelists/ljs_audio_text_val_filelist.txt',
+        training_files='filelists/ljspeech/ljspeech_wav-text_train.txt',
+        validation_files='filelists/ljspeech/ljspeech_wav-text_valid.txt',
         text_cleaners=['english_cleaners'],
 
         ################################
@@ -38,6 +38,8 @@ def create_hparams(hparams_string=None, verbose=False):
         filter_length=1024,
         hop_length=256,
         win_length=1024,
+        hop_length_ms=12.5,
+        win_length_ms=50.0,
         n_mel_channels=80,
         mel_fmin=0.0,
         mel_fmax=8000.0,

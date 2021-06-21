@@ -22,6 +22,10 @@ class TextMelLoader(torch.utils.data.Dataset):
         self.sampling_rate = hparams.sampling_rate
         self.load_mel_from_disk = hparams.load_mel_from_disk
         self.mel_data_type = hparams.mel_data_type
+        if hasattr(hparams, 'win_length_ms'):
+            hparams.win_length = int(hparams.win_length_ms / 1000 * hparams.sampling_rate)
+        if hasattr(hparams, 'hop_length_ms'):
+            hparams.hop_length = int(hparams.hop_length_ms / 1000 * hparams.sampling_rate)
         self.stft = layers.TacotronSTFT(
             hparams.filter_length, hparams.hop_length, hparams.win_length,
             hparams.n_mel_channels, hparams.sampling_rate, hparams.mel_fmin,
